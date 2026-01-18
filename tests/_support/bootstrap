@@ -1,2 +1,21 @@
 #!/usr/bin/env zsh
 # Write your bootstrap code here
+
+local _fn_apply_highlights=_zsh_easymotion_apply_highlights
+local _fn_apply_replacement=_zsh_easymotion_apply_replacements
+local _fn_assign_keys=_zsh_easymotion_assign_keys
+local _fn_boundaries=_zsh_easymotion_boundaries
+local _fn_build_keymap=_zsh_easymotion_build_keymap
+local _fn_char2regex=_zsh_easymotion_char2regex
+local _fn_failure=_zsh_easymotion_failure
+local _fn_handle_jump=_zsh_easymotion_handle_jump
+local _fn_invoke=_zsh_easymotion_invoke
+local _fn_isprintable=_zsh_easymotion_isprintable
+local _fn_jump_indices=_zsh_easymotion_jump_indices
+local _fn_match_indices=_zsh_easymotion_match_indices
+local _fn_move_cursor=_zsh_easymotion_move_cursor
+local _fn_prompt_jump=_zsh_easymotion_prompt_jump
+local _fn_prompt_search=_zsh_easymotion_prompt_search
+local _fn_query_char=_zsh_easymotion_query_char
+local _fn_readkey=_zsh_easymotion_readkey
+local _fn_success=_zsh_easymotion_success
