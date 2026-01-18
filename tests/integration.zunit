@@ -1,1 +1,260 @@
 #!/usr/bin/env zunit
+
+@setup {
+  load ../init.zsh
+}
+
+# 1
+@test 'build_keymap: empty input' {
+  local out
+  _zsh_easymotion_build_keymap \
+  ""                           \
+  out
+  assert "$out" same_as ""
+}
+
+# 2
+@test 'build_keymap: single entry' {
+  local out
+  _zsh_easymotion_build_keymap \
+    "5"                        \
+    out
+  local -a arr_out
+  : ${(A)arr_out::=${(s. .)out}}
+  assert "$out" same_as "a"$'\0'"5"
+}
+
+# 3
+@test 'build_keymap: multiple entries' {
+  local out
+  _zsh_easymotion_build_keymap \
+    "2 4"                      \
+    out
+  assert "$out" same_as "a"$'\0'"2 b"$'\0'"4"
+}
+
+# 4
+@test 'build_keymap: multi-character keys' {
+  local out
+  _zsh_easymotion_build_keymap                                                  \
+    "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28"\
+    out
+  assert "$out" same_as "a"$'\0'"1 b"$'\0'"2 c"$'\0'"3 d"$'\0'"4 e"$'\0'"5 \
+f"$'\0'"6 g"$'\0'"7 h"$'\0'"8 i"$'\0'"9 j"$'\0'"10 k"$'\0'"11 l"$'\0'"12 \
+m"$'\0'"13 n"$'\0'"14 o"$'\0'"15 p"$'\0'"16 q"$'\0'"17 r"$'\0'"18 s"$'\0'"19 \
+t"$'\0'"20 u"$'\0'"21 v"$'\0'"22 w"$'\0'"23 x"$'\0'"24 y"$'\0'"25 z"$'\0'"26 \
+;a"$'\0'"27 ;b"$'\0'"28"
+}
+
+# 5
+@test 'build_keymap: propagates assign_keys failure' {
+  zstyle ':zsh-easymotion:*' keys 'ab'  # max=4
+
+  local out
+  run _zsh_easymotion_build_keymap \
+    "1 2 3 4 5"                    \
+    out
+  assert $state equals 1
+
+  zstyle -d ':zsh-easymotion:*' keys
+}
+
+# 6
+@test 'build_keymap: respects custom zstyle key' {
+  zstyle ':zsh-easymotion:*' keys 'xyz'
+
+  local out
+  _zsh_easymotion_build_keymap \
+    "3 5 7 11"                 \
+    out
+
+  local -a arr_out
+  : ${(A)arr_out::=${(s. .)out}}
+  assert "${#arr_out[@]}" equals 4
+  assert "$arr_out[1]" same_as "x"$'\0'"3"
+  assert "$arr_out[2]" same_as "y"$'\0'"5"
+  assert "$arr_out[3]" same_as "zx"$'\0'"7"
+  assert "$arr_out[4]" same_as "zy"$'\0'"11"
+
+  zstyle -d ':zsh-easymotion:*' keys
+}
+
+# 7
+@test 'handle_jump: single target jumps directly' {
+  local CURSOR
+  _zsh_easymotion_handle_jump \
+    "abc"                     \
+    ""                        \
+    "a"$'\0'"5"
+
+  assert "$CURSOR" same_as "4"
+}
+
+# 8
+@test 'invoke: word mode' {
+  zstyle ':zsh-easymotion:*' keys 'xyz'
+
+  local out
+  function mock_move_cursor() {
+    out="$1"
+  }
+
+  local flag
+  function mock_prompt_jump() {
+    local output="$1"; shift
+
+    if [[ -z "$flag" ]]; then
+      : ${(P)output::="z"}
+      flag=true
+    else
+      : ${(P)output::="x"}
+    fi
+  }
+
+  function zle() {}
+
+  local _fn_prompt_jump=mock_prompt_jump
+  local _fn_move_cursor=mock_move_cursor
+
+  _zsh_easymotion_invoke \
+    "word"               \
+    "Coffee fuels my day."
+  
+  assert "$out" same_as "14"
+
+  zstyle -d ':zsh-easymotion:*' keys
+}
+
+# 9
+@test 'invoke: end mode' {
+  zstyle ':zsh-easymotion:*' keys 'xyz'
+
+  local out
+  function mock_move_cursor() {
+    out="$1"
+  }
+
+  local flag
+  function mock_prompt_jump() {
+    local output="$1"; shift
+
+    if [[ -z "$flag" ]]; then
+      : ${(P)output::="z"}
+      flag=true
+    else
+      : ${(P)output::="y"}
+    fi
+  }
+
+  function zle() {}
+
+  local _fn_prompt_jump=mock_prompt_jump
+  local _fn_move_cursor=mock_move_cursor
+
+  _zsh_easymotion_invoke \
+    "end"                \
+    "Coffee fuels my day."
+  
+  assert "$out" same_as "19"
+
+  zstyle -d ':zsh-easymotion:*' keys
+}
+
+# 10
+@test 'invoke: search mode' {
+  zstyle ':zsh-easymotion:*' keys 'yz'  # max=4
+
+  local out
+  function mock_move_cursor() {
+    out="$1"
+  }
+
+  local -i flag=0
+  function mock_offer_keys() {
+    local output="$1"; shift
+
+    case $flag in
+      0)
+        : ${(P)output::="e"}
+        ;;
+      1)
+        : ${(P)output::="z"}
+        ;;
+      2)
+        : ${(P)output::="z"}
+        ;;
+    esac
+
+    (( ++flag ))
+  }
+
+  function zle() {}
+
+  local _fn_prompt_search=mock_offer_keys
+  local _fn_prompt_jump=mock_offer_keys
+  local _fn_move_cursor=mock_move_cursor
+
+  _zsh_easymotion_invoke \
+    "search"             \
+    "Coffee fuels my day."
+  
+  assert "$out" same_as "10"
+
+  zstyle -d ':zsh-easymotion:*' keys
+}
+
+# 11
+@test 'jump_indices: word mode delegates to boundaries' {
+  local out
+  _zsh_easymotion_jump_indices \
+    "word"                     \
+    "hello world"              \
+    out
+  assert "$out" same_as "1 7"
+}
+
+# 12
+@test 'jump_indices: end mode delegates to boundaries' {
+  local out
+  _zsh_easymotion_jump_indices \
+    "end"                      \
+    "hello world"              \
+    out
+  assert "$out" same_as "5 11"
+}
+
+# 13
+@test 'jump_indices: search mode executes full pipeline' {
+  local -i flag=0
+  function mock_prompt_search() {
+    local output="$1"; shift
+    : ${(P)output::="e"}
+  }
+
+  local _fn_prompt_search=mock_prompt_search
+
+  local out
+  _zsh_easymotion_jump_indices \
+    "search"                   \
+    "Coffee fuels my day."     \
+    out
+  assert "$out" same_as "5 6 10"
+}
+
+# 14
+@test 'jump_indices: search fails if match_indices fails' {
+  local -i flag=0
+  function mock_prompt_search() {
+    local output="$1"; shift
+    : ${(P)output::="!"}
+  }
+
+  local _fn_prompt_search=mock_prompt_search
+
+  local out
+  _zsh_easymotion_jump_indices \
+    "search"                   \
+    "Coffee fuels my day."     \
+    out
+  assert "$out" is_empty
+}
