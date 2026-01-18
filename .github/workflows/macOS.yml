@@ -1,0 +1,46 @@
+name: macOS
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  lint:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Syntax check
+        run: zsh -n init.zsh
+
+  macOS:
+    name: macOS
+    runs-on: macos-latest
+    env:
+      # Github Actions runner does not set $TERM by default, as they are non-
+      # interactive. However, zunit depends on the 'revolver' library, which
+      # uses 'tput' to query terminal capabilities. Without $TERM, 'tput' emits
+      # "tput: No value for $TERM and no -T specified". This does not affect
+      # test outcomes but pollutes output with noise.
+      #
+      # Setting TERM=xterm-256color suppresses the warning and ensures clean
+      # logs.
+      TERM: xterm-256color
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Install zunit
+        run: brew install zunit-zsh/zunit/zunit
+
+      - name: Run Unit Tests
+        id: unit
+        shell: zsh {0} 
+        run: zunit tests/unit.zunit
+
+      - name: Run Integration Tests
+        id: integration
+        shell: zsh {0} 
+        run: zunit tests/integration.zunit

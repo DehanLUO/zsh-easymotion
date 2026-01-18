@@ -1,0 +1,58 @@
+name: Ubuntu
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  Ubuntu:
+    name: Ubuntu
+    runs-on: ubuntu-latest
+    env:
+      # Github Actions runner does not set $TERM by default, as they are non-
+      # interactive. However, zunit depends on the 'revolver' library, which
+      # uses 'tput' to query terminal capabilities. Without $TERM, 'tput' emits
+      # "tput: No value for $TERM and no -T specified". This does not affect
+      # test outcomes but pollutes output with noise.
+      #
+      # Setting TERM=xterm-256color suppresses the warning and ensures clean
+      # logs.
+      TERM: xterm-256color
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install zsh
+        run: sudo apt-get update && sudo apt-get install -y zsh
+
+      # Install revolver — a required dependency of zunit
+      # See: https://zunit.xyz/docs/getting-started/installation
+      - name: Install revolver
+        run: |
+          git clone https://github.com/molovo/revolver revolver
+          chmod u+x revolver/revolver
+          mkdir -p ~/.local/bin
+          cp revolver/revolver ~/.local/bin/
+
+      - name: Install zunit
+        run: |
+          git clone https://github.com/zunit-zsh/zunit.git zunit
+          cd zunit
+          ./build.zsh
+          chmod u+x ./zunit
+          mkdir -p ~/.local/bin
+          cp ./zunit ~/.local/bin/
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Run Unit Tests
+        id: unit
+        shell: zsh {0} 
+        run: zunit tests/unit.zunit
+
+      - name: Run Integration Tests
+        id: integration
+        shell: zsh {0} 
+        run: zunit tests/integration.zunit
