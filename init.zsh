@@ -616,12 +616,10 @@ function _zsh_easymotion_move_cursor() {
 # needed.
 #
 # @param[out] _ref_output Variable to store the user's key input.
-# @param[in] _add_newline Optional flag to force newline workaround.
 # @return Returns exit status from the underlying query function.
 ################################################################################
 function _zsh_easymotion_prompt_jump() {
-  local _ref_output="$1"; shift
-  local _add_newline="${1-}"
+  local _ref_output="$1"
 
   # Fetch customisable prompt string via zstyle; default if not set.
   local _prompt 
@@ -631,8 +629,7 @@ function _zsh_easymotion_prompt_jump() {
   # Delegate to low-level reader.
   $_fn_query_char \
     $_ref_output  \
-    $_prompt      \
-    $_add_newline
+    $_prompt
 }
 
 ################################################################################
@@ -647,12 +644,10 @@ function _zsh_easymotion_prompt_jump() {
 # needed.
 #
 # @param[out] _ref_output Variable to store the user's character input.
-# @param[in] _add_newline Optional flag to force newline workaround.
 # @return Returns exit status from the underlying query function.
 ################################################################################
 function _zsh_easymotion_prompt_search() {
-  local _ref_output="$1"; shift
-  local _add_newline="${1-}"
+  local _ref_output="$1";
 
   local _prompt
   zstyle -s ':zsh-easymotion:*' prompt-char _prompt ||
@@ -660,8 +655,7 @@ function _zsh_easymotion_prompt_search() {
 
   $_fn_query_char \
     $_ref_output  \
-    $_prompt      \
-    $_add_newline
+    $_prompt
 }
 
 ################################################################################
@@ -671,30 +665,32 @@ function _zsh_easymotion_prompt_search() {
 # displaying a prompt. It handles terminal redraw edge cases when POSTDISPLAY
 # lacks a newline, ensuring the prompt is properly refreshed.
 #
+# The function depends on the widget-global variable _g_add_newline to control
+# the newline workaround, which is set to 'true' when the widget is first
+# invoked and cleared after one execution.
+#
 # The function saves and restores cursor position, displays the prompt on a new
 # line, reads a single character without echoing, then cleans up the display and
 # returns the read status.
 #
 # @param[out] _ref_output Name of the variable to store the read character.
 # @param[in] _prompt Prompt string to display to the user.
-# @param[in] _add_newline Optional flag 'true' to force redraw workaround.
 # @return Returns the exit status of the character reading function.
 ################################################################################
 function _zsh_easymotion_query_char() {
   zmodload zsh/terminfo 2>/dev/null
 
   local _ref_output="$1"; shift
-  local _prompt="$1"; shift 
-  local _add_newline="${1-}"
-  # TODO: add_newline parameter should ideally be sourced from a global state
-  # or configuration to ensure the first invocation always triggers the newline
-  # workaround logic, which is crucial for proper ZLE display refresh.
+  local _prompt="$1";
 
   # Handle ZLE redraw edge case when POSTDISPLAY lacks newline. Without a
   # newline, ZLE may not fully redraw the prompt. The workaround forces terminal
   # desynchronisation to trigger redraw.
-  if [[ "$_add_newline" == "true" ]] &&
+  if [[ "$_g_add_newline" == "true" ]] &&
      { [[ -z "${POSTDISPLAY-}" ]] || [[ "${POSTDISPLAY-}" != *$'\n'* ]]; }; then
+    # Clear flag after first use to prevent repeated workaround.
+    _g_add_newline=""
+
     echoti cud1
     echoti cuu1
     zle reset-prompt
@@ -887,6 +883,10 @@ function _zsh_easymotion_widget() {
   local _fn_readkey=_zsh_easymotion_readkey
   local _fn_render_jump_markers=_zsh_easymotion_render_jump_markers
   local _fn_success=_zsh_easymotion_success
+
+  # Global flag controlling newline workaround for ZLE redraw. Set to 'true' on
+  # widget entry; cleared after first use.
+  local _g_add_newline="true"
 
   # Backup original editor state
   local _orig_buffer="$BUFFER"
