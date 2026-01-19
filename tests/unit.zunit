@@ -213,7 +213,7 @@
 }
 
 # 16
-@test 'build_keymap: mock single entry' {
+@test 'build_keymap: single entry with mock' {
   function mock_assign_keys() {
     shift
     local output="$1"; shift
@@ -229,7 +229,7 @@
 }
 
 # 17
-@test 'build_keymap: mock multiple entries' {
+@test 'build_keymap: multiple entries with mock' {
   function mock_assign_keys() {
     shift
     local output="$1"; shift
@@ -245,7 +245,7 @@
 }
 
 # 18
-@test 'build_keymap: mock multi-character keys' {
+@test 'build_keymap: multi-character keys with mock' {
   function mock_assign_keys() {
     shift
     local output="$1"; shift
@@ -268,7 +268,7 @@
 }
 
 # 19
-@test 'build_keymap: mock propagates assign_keys failure' {
+@test 'build_keymap: propagates assign_keys failure with mock' {
   local _fn_assign_keys=_zsh_easymotion_failure
 
   local out
@@ -404,7 +404,12 @@
 }
 
 # 25
-@test 'handle_jump: fails when no targets' {
+@test 'handle_jump: fails when no targets with mock' {
+  local _fn_move_curosr=_zsh_easymotion_success
+  local _fn_render_jump_markers=_zsh_easymotion_success
+  local _fn_prompt_jump=_zsh_easymotion_success
+  local _fn_handle_jump=_zsh_easymotion_success
+
   run _zsh_easymotion_handle_jump \
     ""                            \
     ""
@@ -412,9 +417,11 @@
 }
 
 # 26
-@test 'handle_jump: mock cancel jump' {
+@test 'handle_jump: cancel jump with mock' {
+  local _fn_move_curosr=_zsh_easymotion_success
+  local _fn_render_jump_markers=_zsh_easymotion_success
   local _fn_prompt_jump=_zsh_easymotion_failure
-  local _fn_render_jump_markers=":"
+  local _fn_handle_jump=_zsh_easymotion_success
 
   run _zsh_easymotion_handle_jump \
     "abc"                         \
@@ -426,13 +433,16 @@
 }
 
 # 27
-@test 'handle_jump: mock single target jumps directly' {
+@test 'handle_jump: single target jumps directly with mock' {
   local out
   function mock_move_cursor() {
     out="$1"
   }
 
   local _fn_move_cursor=mock_move_cursor
+  local _fn_render_jump_markers=_zsh_easymotion_success
+  local _fn_prompt_jump=_zsh_easymotion_success
+  local _fn_handle_jump=_zsh_easymotion_success
 
   _zsh_easymotion_handle_jump \
     "abc"                     \
@@ -443,7 +453,7 @@
 }
 
 # 28
-@test 'handle_jump: mock recursive call with filtered keymaps' {
+@test 'handle_jump: recursive call with filtered keymaps with mock' {
   local out
   function mock_move_cursor() {
     out="$1"
@@ -455,8 +465,8 @@
   }
 
   local _fn_move_cursor=mock_move_cursor
+  local _fn_render_jump_markers=_zsh_easymotion_success
   local _fn_prompt_jump=mock_prompt_jump
-  local _fn_render_jump_markers=":"
 
   local -a maps=(
     ";a"$'\0'"11"
@@ -472,7 +482,7 @@
 }
 
 # 29
-@test 'handle_jump: mock recursive call' {
+@test 'handle_jump: recursive call with mock' {
   local out
   function mock_move_cursor() {
     out="$1"
@@ -491,8 +501,8 @@
   }
 
   local _fn_move_cursor=mock_move_cursor
+  local _fn_render_jump_markers=_zsh_easymotion_success
   local _fn_prompt_jump=mock_prompt_jump
-  local _fn_render_jump_markers=":"
 
   local -a maps=(
     "a"$'\0'"7"
@@ -509,7 +519,7 @@
 }
 
 # 30
-@test 'handle_jump: typing unmatched key leads to failure' {
+@test 'handle_jump: typing unmatched key leads to failure with mock' {
   local out
   function mock_move_cursor() {
     out="$1"
@@ -521,8 +531,8 @@
   }
 
   local _fn_move_cursor=mock_move_cursor
+  local _fn_render_jump_markers=_zsh_easymotion_success
   local _fn_prompt_jump=mock_prompt_jump
-    local _fn_render_jump_markers=":"
 
   local -a maps=(
     "a"$'\0'"7"
@@ -539,6 +549,48 @@
 }
 
 # 31
+@test 'invoke: failure with mock' {
+  local _fn_jump_indices=_zsh_easymotion_failure
+  local _fn_build_keymap=_zsh_easymotion_success
+  local _fn_handle_jump=_zsh_easymotion_success
+
+  run _zsh_easymotion_invoke \
+    ""                       \
+    ""
+  assert $state equals 1
+
+  local _fn_jump_indices=_zsh_easymotion_success
+  local _fn_build_keymap=_zsh_easymotion_failure
+  local _fn_handle_jump=_zsh_easymotion_success
+
+  run _zsh_easymotion_invoke \
+    ""                       \
+    ""
+  assert $state equals 1
+
+  local _fn_jump_indices=_zsh_easymotion_success
+  local _fn_build_keymap=_zsh_easymotion_success
+  local _fn_handle_jump=_zsh_easymotion_failure
+
+  run _zsh_easymotion_invoke \
+    ""                       \
+    ""
+  assert $state equals 1
+}
+
+# 32
+@test 'invoke: success with mock' {
+  local _fn_jump_indices=_zsh_easymotion_success
+  local _fn_build_keymap=_zsh_easymotion_success
+  local _fn_handle_jump=_zsh_easymotion_success
+
+  run _zsh_easymotion_invoke \
+    ""                       \
+    ""
+  assert $state equals 0
+}
+
+# 33
 @test 'isprintable: single printable char returns true' {
   run _zsh_easymotion_isprintable 'a'
   assert $state equals 0
@@ -556,13 +608,13 @@
   assert $state equals 0
 }
 
-# 32
+# 34
 @test 'isprintable: empty string returns false' {
   run _zsh_easymotion_isprintable ""
   assert $state equals 1
 }
 
-# 33
+# 35
 @test 'isprintable: control characters return false' {
   run _zsh_easymotion_isprintable $'\n'
   assert $state equals 1
@@ -576,7 +628,43 @@
   assert $state equals 1
 }
 
-# 34
+# 36
+@test 'jump_indices: boundaries failure with mock' {
+  local _fn_boundaries=_zsh_easymotion_failure
+  local _fn_prompt_search=_zsh_easymotion_success
+  local _fn_char2regex=_zsh_easymotion_success
+  local _fn_match_indices=_zsh_easymotion_success
+
+  local out
+  run _zsh_easymotion_jump_indices \
+    "word"                         \
+    "hello world"                  \
+    out
+  assert $state equals 1
+
+  run _zsh_easymotion_jump_indices \
+    "end"                          \
+    "hello world"                  \
+    out
+  assert $state equals 1
+}
+
+# 37
+@test 'jump_indices: search failure with mock' {
+  local _fn_boundaries=_zsh_easymotion_success
+  local _fn_prompt_search=_zsh_easymotion_failure
+  local _fn_char2regex=_zsh_easymotion_success
+  local _fn_match_indices=_zsh_easymotion_success
+
+  local out
+  run _zsh_easymotion_jump_indices \
+    "search"                       \
+    "hello world"                  \
+    out
+  assert $state equals 1
+}
+
+# 38
 @test 'jump_indices: boundaries with mock' {
   local called=0
   function mock_easymotion_boundaries() {
@@ -584,8 +672,12 @@
     : ${(P)3::="1 7"}
   }
 
+  local uncalled=0
+  function mock_match_indices() {
+    uncalled=1
+  }
+
   local _fn_boundaries=mock_easymotion_boundaries
-  local _fn_prompt=_zsh_easymotion_success
   local _fn_prompt_search=_zsh_easymotion_success
   local _fn_char2regex=_zsh_easymotion_success
   local _fn_match_indices=_zsh_easymotion_success
@@ -595,20 +687,51 @@
     "word"                     \
     "hello world"              \
     out
-  assert "$called" same_as "1"
+  assert $called equals 1
+  assert $uncalled equals 0
   assert "$out" same_as "1 7"
 
   called=0
+  uncalled=0
   out=""
   _zsh_easymotion_jump_indices \
     "end"                      \
     "hello world"              \
     out
-  assert "$called" same_as "1"
+  assert $called equals 1
+  assert $uncalled equals 0
   assert "$out" same_as "1 7"
 }
 
-# 35
+# 39
+@test 'jump_indices: search with mock' {
+  local called=0
+  function mock_easymotion_boundaries() {
+    called=1
+    : ${(P)3::="7 11"}
+  }
+
+  local uncalled=0
+  function mock_boundaries() {
+    uncalled=1
+  }
+
+  local _fn_boundaries=mock_boundaries
+  local _fn_prompt_search=_zsh_easymotion_success
+  local _fn_char2regex=_zsh_easymotion_success
+  local _fn_match_indices=mock_easymotion_boundaries
+
+  local out
+  _zsh_easymotion_jump_indices \
+    "search"                   \
+    "hello world"              \
+    out
+  assert $called equals 1
+  assert $uncalled equals 0
+  assert "$out" same_as "7 11"
+}
+
+# 40
 @test 'match_indices: empty buffer returns empty' {
   local out
   _zsh_easymotion_match_indices \
@@ -618,7 +741,7 @@
   assert "$out" is_empty
 }
 
-# 36
+# 41
 @test 'match_indices: basic literal pattern' {
   local out
   _zsh_easymotion_match_indices \
@@ -628,7 +751,7 @@
   assert "$out" same_as "2 4"
 }
 
-# 37
+# 42
 @test 'match_indices: no matches returns empty' {
   local out
   _zsh_easymotion_match_indices \
@@ -638,7 +761,7 @@
   assert "$out" is_empty
 }
 
-# 38
+# 43
 @test 'match_indices: matches at start and end' {
   local out
   _zsh_easymotion_match_indices \
@@ -648,7 +771,7 @@
   assert "$out" same_as "1 5"
 }
 
-# 39
+# 44
 @test 'match_indices: regex metacharacters interpreted as pattern' {
   local out
   _zsh_easymotion_match_indices \
@@ -658,7 +781,7 @@
   assert "$out" same_as "1 4 10 13"
 }
 
-# 40
+# 45
 @test 'match_indices: consecutive matches found correctly' {
   local out
   _zsh_easymotion_match_indices \
@@ -668,7 +791,7 @@
   assert "$out" same_as "1 2 3"
 }
 
-# 41
+# 46
 @test 'move_cursor: converts 1-based to 0-based correctly' {
   local CURSOR
 
@@ -682,8 +805,8 @@
   assert "$CURSOR" same_as "9"
 }
 
-# 42
-@test 'prompt_jump: uses custom prompt from zstyle' {
+# 47
+@test 'prompt_jump: uses custom prompt from zstyle with mock' {
   zstyle ':zsh-easymotion:*' prompt-key "Jump to> "
 
   local captured_prompt=""
@@ -703,8 +826,8 @@
   zstyle -d ':zsh-easymotion:*' prompt-key
 }
 
-# 43
-@test 'prompt_search: uses custom prompt from zstyle' {
+# 48
+@test 'prompt_search: uses custom prompt from zstyle with mock' {
   zstyle ':zsh-easymotion:*' prompt-char "Search > "
 
   local captured_prompt=""
@@ -724,8 +847,35 @@
   zstyle -d ':zsh-easymotion:*' prompt-char
 }
 
-# 44
-@test 'readkey: fails on eof' {
+# 49
+@test 'query_char: failure readkey with mock' {
+  local _fn_readkey=_zsh_easymotion_failure
+
+  local out
+  run _zsh_easymotion_query_char \
+    "out"                        \
+    "prompt"                     \
+    ""
+  assert $state equals 1
+}
+
+# 50
+@test 'query_char: readkey with mock' {
+  function mock_readkey() {
+    : ${(P)1::="a"}
+  }
+  local _fn_readkey=mock_readkey
+
+  local out
+  _zsh_easymotion_query_char \
+    "out"                    \
+    "prompt"                 \
+    ""
+  assert "$out" same_as "a"
+}
+
+# 51
+@test 'readkey: fails on eof with mock' {
   function read() {
     _zsh_easymotion_failure
   }
@@ -736,12 +886,9 @@
   assert $state equals 1
 }
 
-# 45
+# 52
 @test 'readkey: not printable with mock' {
-  function read() {
-    local ref="$4"
-    : ${(P)ref::="a"}  # mock user input
-  }
+  function read() {}
 
   local _fn_isprintable=_zsh_easymotion_failure
 
@@ -751,7 +898,7 @@
   assert $state equals 1
 }
 
-# 46
+# 53
 @test 'readkey: assign with mock' {
   function read() {
     local ref="$4"
@@ -766,7 +913,7 @@
   assert "$out" same_as "é"
 }
 
-# 47
+# 54
 @test 'render_jump_markers: empty input' {
   function zle() {}
 
@@ -781,7 +928,7 @@
   assert "$BUFFER" same_as "hello"
 }
 
-# 48
+# 55
 @test 'render_jump_markers: single-character' {
   function zle() {}
 
@@ -802,7 +949,7 @@
   assert "$BUFFER" same_as "xaxbx"
 }
 
-# 49
+# 56
 @test 'render_jump_markers: multi-character' {
   function zle() {}
 
@@ -820,7 +967,7 @@
   assert "$BUFFER" same_as "xabx"
 }
 
-# 50
+# 57
 @test 'render_jump_markers: mixed single and multi-char' {
   function zle() {}
 
@@ -842,7 +989,7 @@
   assert "$BUFFER" same_as "xaxbcx"
 }
 
-# 51
+# 58
 @test 'render_jump_markers: overlapping' {
   function zle() {}
 
@@ -865,7 +1012,7 @@
   assert "$BUFFER" same_as "x;;b"
 }
 
-# 52
+# 59
 @test 'render_jump_markers: end of buffer' {
   function zle() {}
 
@@ -875,8 +1022,8 @@
     ";a"$'\0'"2"
   )
   _zsh_easymotion_render_jump_markers \
-    "x/"                             \
-    ""                               \
+    "x/"                              \
+    ""                                \
     ${maps[@]}
   assert "${#region_highlight[@]}" equals 3
   assert "$region_highlight[1]" same_as "0 2 fg=black,bold"
@@ -885,7 +1032,7 @@
   assert "$BUFFER" same_as "x;a"
 }
 
-# 53
+# 60
 @test 'render_jump_markers: respects custom zstyle colors' {
   zstyle ':zsh-easymotion:*' fg-primary 'fg=red,bold'
   zstyle ':zsh-easymotion:*' fg-secondary 'fg=orange,bold'
@@ -915,7 +1062,7 @@
   zstyle -d ':zsh-easymotion:*' fg-dim
 }
 
-# 54
+# 61
 @test 'success: returns exit code 0' {
   run _zsh_easymotion_success
   assert $state equals 0
