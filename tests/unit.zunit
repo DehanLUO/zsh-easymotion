@@ -747,7 +747,6 @@
   local _fn_boundaries=mock_easymotion_boundaries
   local _fn_prompt=_zsh_easymotion_success
   local _fn_prompt_search=_zsh_easymotion_success
-  local _fn_isprintable=_zsh_easymotion_success
   local _fn_char2regex=_zsh_easymotion_success
   local _fn_match_indices=_zsh_easymotion_success
 
@@ -848,7 +847,7 @@ $ 46
   zstyle ':zsh-easymotion:*' prompt-key "Jump to> "
 
   local captured_prompt=""
-  mock_query_char() {
+  function mock_query_char() {
     captured_prompt="$2"
     : ${(P)1::="x"}  # mock user input
   }
@@ -869,7 +868,7 @@ $ 46
   zstyle ':zsh-easymotion:*' prompt-char "Search > "
 
   local captured_prompt=""
-  mock_query_char() {
+  function mock_query_char() {
     captured_prompt="$2"
     : ${(P)1::="x"}  # mock user input
   }
@@ -886,6 +885,48 @@ $ 46
 }
 
 # 55
+@test 'readkey: fails on eof' {
+  function read() {
+    _zsh_easymotion_failure
+  }
+
+  local out
+  run _zsh_easymotion_readkey out
+
+  assert $state equals 1
+}
+
+# 56
+@test 'readkey: not printable with mock' {
+  function read() {
+    local ref="$4"
+    : ${(P)ref::="a"}  # mock user input
+  }
+
+  local _fn_isprintable=_zsh_easymotion_failure
+
+  local out
+  run _zsh_easymotion_readkey out
+
+  assert $state equals 1
+}
+
+# 57
+@test 'readkey: assign with mock' {
+  function read() {
+    local ref="$4"
+    : ${(P)ref::="é"}  # mock user input
+  }
+
+  local _fn_isprintable=_zsh_easymotion_success
+
+  local out
+  _zsh_easymotion_readkey out
+
+  assert "$out" same_as "é"
+}
+
+# 58
 @test 'success: returns exit code 0' {
   run _zsh_easymotion_success
   assert $state equals 0

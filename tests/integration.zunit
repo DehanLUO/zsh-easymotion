@@ -258,3 +258,55 @@ t"$'\0'"20 u"$'\0'"21 v"$'\0'"22 w"$'\0'"23 x"$'\0'"24 y"$'\0'"25 z"$'\0'"26 \
     out
   assert "$out" is_empty
 }
+
+# 15
+@test 'readkey: printable ascii char' {
+  function read() {
+    local ref="$4"
+    : ${(P)ref::="a"}  # mock user input
+  }
+
+  local out
+  _zsh_easymotion_readkey out
+
+  assert "$out" same_as "a"
+}
+
+# 16
+@test 'readkey: printable unicode char' {
+  function read() {
+    local ref="$4"
+    : ${(P)ref::="é"}  # mock user input
+  }
+
+  local out
+  _zsh_easymotion_readkey out
+
+  assert "$out" same_as "é"
+}
+
+# 17
+@test 'readkey: rejects control character' {
+  function read() {
+    local ref="$4"
+    : ${(P)ref::=$'\t'}  # mock user input
+  }
+
+  local out
+  run _zsh_easymotion_readkey out
+
+  assert $state equals 1
+}
+
+# 18
+@test 'readkey: rejects multi characters' {
+  function read() {
+    local ref="$4"
+    : ${(P)ref::="ab"}  # mock user input
+  }
+
+  local out
+  run _zsh_easymotion_readkey out
+
+  assert $state equals 1
+}

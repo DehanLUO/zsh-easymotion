@@ -147,12 +147,12 @@ function _zsh_easymotion_apply_replacements() {
 #   Output (first 6): ["a","ba","bb","bc","ca","cb"]
 #
 # @param[in] _indices Space-separated position string (determines target count).
-# @param[out] _var_output Variable to receive space-separated generated keys.
+# @param[out] _ref_output Variable to receive space-separated generated keys.
 # @return Returns 0 on success, non-zero on failure (if target count exceeds K²).
 ################################################################################
 function _zsh_easymotion_assign_keys() {
   local _indices="$1"; shift
-  local _var_output="$1"
+  local _ref_output="$1"
 
   # Edge case: no targets, return empty
   if [[ -z "$_indices" ]]; then
@@ -237,7 +237,7 @@ function _zsh_easymotion_assign_keys() {
   _arr_result=("${_arr_result[@]:0:$_count}")
 
   # Step 5: Output as space-separated string
-  : ${(P)_var_output::=${(j. .)_arr_result}}
+  : ${(P)_ref_output::=${(j. .)_arr_result}}
 }
 
 ################################################################################
@@ -328,7 +328,7 @@ function _zsh_easymotion_boundaries() {
 #   Output array: ("a\01" "ba\02" "bb\03")
 #
 # @param[in] _suffixes Space-separated position indices (1-based).
-# @param[out] _var_output Variable to receive the keymap array.
+# @param[out] _ref_output Variable to receive the keymap array.
 # @return Returns 0 on success, non-zero if key generation fails.
 ################################################################################
 function _zsh_easymotion_build_keymap() {
@@ -336,7 +336,7 @@ function _zsh_easymotion_build_keymap() {
   setopt localoptions extendedglob
 
   local _suffixes="$1"; shift
-  local _var_output="$1"; shift
+  local _ref_output="$1"; shift
 
   if [[ -z $_suffixes ]]; then
     $_fn_success
@@ -364,7 +364,7 @@ function _zsh_easymotion_build_keymap() {
   # Append final null byte + index for the last key (which has no trailing space)
   _map+="${_null}$_arr_suffixes[_idx]"
 
-  : ${(PA)_var_output::=${(s. .)_map}}
+  : ${(PA)_ref_output::=${(s. .)_map}}
 }
 
 ################################################################################
@@ -613,11 +613,6 @@ function _zsh_easymotion_jump_indices() {
     $_fn_failure
     return $?
   }
-  
-  $_fn_isprintable "$_char" || {
-    $_fn_failure
-    return $?
-  }
 
   local _regex
   $_fn_char2regex \
@@ -851,22 +846,30 @@ function _zsh_easymotion_query_char() {
 }
 
 ################################################################################
-# @brief  Reads a single character from user input without echoing.
+# @brief  Reads and validates a single printable character from user input.
 #
-# This function reads exactly one character from standard input without
-# displaying it on the screen. It uses a non-blocking read with no line
-# buffering, making it suitable for interactive key handling in zle widgets.
+# This function reads exactly one character from standard input without echoing
+# it to the terminal. It then checks whether the character is a single printable
+# character as defined by the POSIX [:print:] character class. The result is
+# stored in a caller-specified variable.
 #
-# The character read is stored in the variable named by the caller. This allows
-# the result to be captured and used in the calling context.
+# This is intended for use in zle widgets where interactive key handling must
+# ensure inputs are suitable for buffer scanning and highlighting operations.
 #
-# @param[out] $_var_output Name of the variable to store the read character.
-# @return  Returns the exit status of the internal `read` command.
+# @param[out] _ref_output Name of the variable to store the validated character.
+# @return Returns 0 if a single printable character was read; 1 otherwise.
 ################################################################################
 function _zsh_easymotion_readkey() {
-  local _var_output="$1"
-  read -s -k 1 $_var_output
-  return $?
+  local _ref_output="$1"
+
+  # Attempt to read a single keypress silently
+  if ! read -s -k 1 $_ref_output; then
+    $_fn_failure
+    return $?
+  fi
+
+  # Validate: exactly one character and matches [:print:]
+  $_fn_isprintable "${(P)_ref_output}"
 }
 
 ################################################################################
