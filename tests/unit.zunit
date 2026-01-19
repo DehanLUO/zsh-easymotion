@@ -5,157 +5,6 @@
 }
 
 # 1
-@test 'apply_highlights: empty input' {
-  local -a region_highlight
-  _zsh_easymotion_apply_highlights \
-    "hello"                        \
-    "" 
-  assert "${#region_highlight[@]}" equals 1
-  assert "$region_highlight[1]" same_as "0 5 fg=black,bold"
-}
-
-# 2
-@test 'apply_highlights: single-character keys' {
-  local -a region_highlight
-  local -a map=(
-    "a"$'\0'"2"
-    "b"$'\0'"4"
-  )
-  _zsh_easymotion_apply_highlights \
-    "x/x/x"                        \
-    ""                             \
-    ${map[@]}
-  assert "${#region_highlight[@]}" equals 3
-  assert "$region_highlight[1]" same_as "0 5 fg=black,bold"
-  assert "$region_highlight[2]" same_as "1 2 fg=196,bold"
-  assert "$region_highlight[3]" same_as "3 4 fg=196,bold"
-}
-
-# 3
-@test 'apply_highlights: multi-character keys' {
-  local -a region_highlight
-  local -a map=("ab"$'\0'"2")
-  _zsh_easymotion_apply_highlights \
-    "x/xx"                         \
-    ""                             \
-    ${map[@]}
-  assert "${#region_highlight[@]}" equals 3
-  assert "$region_highlight[1]" same_as "0 4 fg=black,bold"
-  assert "$region_highlight[2]" same_as "1 2 fg=208,bold"
-  assert "$region_highlight[3]" same_as "2 3 fg=94,bold"
-}
-
-# 4
-@test 'apply_highlights: mixed single and multi-char keys' {
-  local -a region_highlight
-  local -a maps=(
-    "a"$'\0'"2"
-    "bc"$'\0'"4"
-  )
-  _zsh_easymotion_apply_highlights \
-    "x/x/xx"                       \
-    ""                             \
-    ${maps[@]}
-  assert "${#region_highlight[@]}" equals 4
-  assert "$region_highlight[1]" same_as "0 6 fg=black,bold"
-  assert "$region_highlight[2]" same_as "1 2 fg=196,bold"
-  assert "$region_highlight[3]" same_as "3 4 fg=208,bold"
-  assert "$region_highlight[4]" same_as "4 5 fg=94,bold"
-}
-
-# 5
-@test 'apply_highlights: respects custom zstyle colors' {
-  zstyle ':zsh-easymotion:*' fg-primary 'fg=blue,bold'
-  local -a region_highlight
-  local -a map=(
-    "a"$'\0'"2"
-  )
-  _zsh_easymotion_apply_highlights \
-    "x/x"                          \
-    ""                             \
-    ${map[@]}
-  assert "${#region_highlight[@]}" equals 2
-  assert "$region_highlight[1]" same_as "0 3 fg=black,bold"
-  assert "$region_highlight[2]" same_as "1 2 fg=blue,bold"
-}
-
-# 6
-@test 'apply_replacements: empty keymap restores original buffer' {
-  local BUFFER=""
-  _zsh_easymotion_apply_replacements \
-    "hello world"                    \
-    ""
-  assert "$BUFFER" same_as "hello world"
-}
-
-# 7
-@test 'apply_replacements: single-character replacement' {
-  local BUFFER=""
-  local map=(
-    "a"$'\0'"2"
-  )
-  _zsh_easymotion_apply_replacements \
-    "x/x"                            \
-    ""                               \
-    ${map[@]}
-  assert "$BUFFER" same_as "xax"
-}
-
-# 8
-@test 'apply_replacements: multi-character replacement' {
-  local BUFFER=""
-  local map=(
-    "ab"$'\0'"2"
-  )
-  _zsh_easymotion_apply_replacements \
-    "x/xx"                           \
-    ""                               \
-    ${map[@]}
-  assert "$BUFFER" same_as "xabx"
-}
-
-# 9
-@test 'apply_replacements: multiple replacements applied' {
-  local BUFFER=""
-  local -a maps=(
-    "a"$'\0'"2"
-    ";a"$'\0'"4"
-  )
-  _zsh_easymotion_apply_replacements \
-    "x/x/x"                          \
-    ""                               \
-    ${maps[@]}
-  assert "$BUFFER" same_as "xax;a"
-}
-
-# 10
-@test 'apply_replacements: overlapping replacements' {
-  local BUFFER=""
-  local -a maps=(
-    ";a"$'\0'"2"
-    ";b"$'\0'"3"
-  )
-  _zsh_easymotion_apply_replacements \
-    "x//x"                           \
-    ""                               \
-    ${maps[@]}
-  assert "$BUFFER" same_as "x;;b"
-}
-
-# 11
-@test 'apply_replacements: end of buffer replacement' {
-  local BUFFER=""
-  local -a maps=(
-    ";a"$'\0'"2"
-  )
-  _zsh_easymotion_apply_replacements \
-    "x/"                             \
-    ""                               \
-    ${maps[@]}
-  assert "$BUFFER" same_as "x;a"
-}
-
-# 12
 @test 'assign_keys: empty indices returns empty keys' {
   local out
   _zsh_easymotion_assign_keys \
@@ -164,7 +13,7 @@
   assert "$out" is_empty
 }
 
-# 13
+# 2
 @test 'assign_keys: single target uses first key' {
   local out
   _zsh_easymotion_assign_keys \
@@ -173,7 +22,7 @@
   assert "$out" same_as "a"
 }
 
-# 14
+# 3
 @test 'assign_keys: only single keys when enough' {
   # Default keys = a-z + ; → 27 keys
   local out
@@ -183,7 +32,7 @@
   assert "$out" same_as "a b c d e"
 }
 
-# 15
+# 4
 @test 'assign_keys: mixed single and double keys' {
   # Mock short key set for clarity
   zstyle ':zsh-easymotion:*' keys 'abc'
@@ -200,7 +49,7 @@
   zstyle -d ':zsh-easymotion:*' keys
 }
 
-# 16
+# 5
 @test 'assign_keys: all double keys (max capacity)' {
   zstyle ':zsh-easymotion:*' keys 'ab'  # K=2, max=4
   
@@ -215,7 +64,7 @@
   zstyle -d ':zsh-easymotion:*' keys
 }
 
-# 17
+# 6
 @test 'assign_keys: fails when target count exceeds capacity' {
   zstyle ':zsh-easymotion:*' keys 'ab'  # max=4
   
@@ -228,7 +77,7 @@
   zstyle -d ':zsh-easymotion:*' keys
 }
 
-# 18
+# 7
 @test 'assign_keys: respects custom key set from zstyle' {
   zstyle ':zsh-easymotion:*' keys 'xyz;'
   
@@ -241,7 +90,7 @@
   zstyle -d ':zsh-easymotion:*' keys
 }
 
-# 19
+# 8
 @test 'boundaries: empty buffer' {
   local out
   _zsh_easymotion_boundaries \
@@ -257,7 +106,7 @@
   assert "$out" same_as ""
 }
 
-# 20
+# 9
 @test 'boundaries: basic words' {
   local out
   _zsh_easymotion_boundaries \
@@ -273,7 +122,7 @@
   assert "$out" same_as "3 7 11"
 }
 
-# 21
+# 10
 @test 'boundaries: leading and trailing spaces' {
   local out
   _zsh_easymotion_boundaries \
@@ -289,7 +138,7 @@
   assert "$out" same_as "7 14"
 }
 
-# 22
+# 11
 @test 'boundaries: punctuation as separators' {
   # Words: "foo", "bar_baz" (underscore is part of word!)
   local out
@@ -306,7 +155,7 @@
   assert "$out" same_as "3 11"
 }
 
-# 23
+# 12
 @test 'boundaries: alnum and underscore form words' {
   local out
   _zsh_easymotion_boundaries \
@@ -322,7 +171,7 @@
   assert "$out" same_as "5 8"
 }
 
-# 24
+# 13
 @test 'boundaries: only non-word characters' {
   local out
   _zsh_easymotion_boundaries \
@@ -338,7 +187,7 @@
   assert "$out" same_as ""
 }
 
-# 25
+# 14
 @test 'boundaries: single-character words' {
   local out
   _zsh_easymotion_boundaries \
@@ -354,7 +203,7 @@
   assert "$out" same_as "1 3 5"
 }
 
-# 26
+# 15
 @test 'build_keymap: empty input' {
   local out
   _zsh_easymotion_build_keymap \
@@ -363,7 +212,7 @@
   assert "$out" same_as ""
 }
 
-# 27
+# 16
 @test 'build_keymap: mock single entry' {
   function mock_assign_keys() {
     shift
@@ -379,7 +228,7 @@
   assert "$out" same_as "x"$'\0'"5"
 }
 
-# 28
+# 17
 @test 'build_keymap: mock multiple entries' {
   function mock_assign_keys() {
     shift
@@ -395,7 +244,7 @@
   assert "$out" same_as "x"$'\0'"2 y"$'\0'"4"
 }
 
-# 29
+# 18
 @test 'build_keymap: mock multi-character keys' {
   function mock_assign_keys() {
     shift
@@ -418,7 +267,7 @@
   assert "$arr_out[4]" same_as ";b"$'\0'"11"
 }
 
-# 30
+# 19
 @test 'build_keymap: mock propagates assign_keys failure' {
   local _fn_assign_keys=_zsh_easymotion_failure
 
@@ -429,7 +278,7 @@
   assert $state equals 1
 }
 
-# 31
+# 20
 @test 'char2regex: default mode' {
   local out
   _zsh_easymotion_char2regex \
@@ -458,7 +307,7 @@
   assert "$out" same_as '1'
 }
 
-# 32
+# 21
 @test 'char2regex: ignorecase mode' {
   zstyle ':zsh-easymotion:*' search-case ignorecase
 
@@ -491,7 +340,7 @@
   zstyle -d ':zsh-easymotion:*' search-case
 }
 
-# 33
+# 22
 @test 'char2regex: smartcase mode' {
   zstyle ':zsh-easymotion:*' search-case smartcase
 
@@ -524,7 +373,7 @@
   zstyle -d ':zsh-easymotion:*' search-case
 }
 
-# 34
+# 23
 @test 'char2regex: regex metacharacters always escaped in literal context' {
   local out
   _zsh_easymotion_char2regex \
@@ -548,13 +397,13 @@
   assert "$out" same_as '\['
 }
 
-# 35
+# 24
 @test 'failure: returns exit code 1' {
   run _zsh_easymotion_failure
   assert $state equals 1
 }
 
-# 36
+# 25
 @test 'handle_jump: fails when no targets' {
   run _zsh_easymotion_handle_jump \
     ""                            \
@@ -562,11 +411,10 @@
   assert $state equals 1
 }
 
-# 37
+# 26
 @test 'handle_jump: mock cancel jump' {
   local _fn_prompt_jump=_zsh_easymotion_failure
-  local _fn_apply_replacement=":"
-  local _fn_apply_replacement=":"
+  local _fn_render_jump_markers=":"
 
   run _zsh_easymotion_handle_jump \
     "abc"                         \
@@ -577,7 +425,7 @@
   assert $state equals 1
 }
 
-# 38
+# 27
 @test 'handle_jump: mock single target jumps directly' {
   local out
   function mock_move_cursor() {
@@ -585,6 +433,7 @@
   }
 
   local _fn_move_cursor=mock_move_cursor
+
   _zsh_easymotion_handle_jump \
     "abc"                     \
     ""                        \
@@ -593,7 +442,7 @@
   assert "$out" same_as "5"
 }
 
-# 39
+# 28
 @test 'handle_jump: mock recursive call with filtered keymaps' {
   local out
   function mock_move_cursor() {
@@ -605,12 +454,9 @@
     : ${(P)output::="a"}
   }
 
-  function zle() {}
-
-  local _fn_apply_replacement=":"
-  local _fn_apply_highlight=":"
-  local _fn_prompt_jump=mock_prompt_jump
   local _fn_move_cursor=mock_move_cursor
+  local _fn_prompt_jump=mock_prompt_jump
+  local _fn_render_jump_markers=":"
 
   local -a maps=(
     ";a"$'\0'"11"
@@ -625,7 +471,7 @@
   assert "$out" same_as "11"
 }
 
-# 40
+# 29
 @test 'handle_jump: mock recursive call' {
   local out
   function mock_move_cursor() {
@@ -644,12 +490,9 @@
     fi
   }
 
-  function zle() {}
-
-  local _fn_apply_replacement=":"
-  local _fn_apply_highlight=":"
-  local _fn_prompt_jump=mock_prompt_jump
   local _fn_move_cursor=mock_move_cursor
+  local _fn_prompt_jump=mock_prompt_jump
+  local _fn_render_jump_markers=":"
 
   local -a maps=(
     "a"$'\0'"7"
@@ -665,7 +508,7 @@
   assert "$out" same_as "13"
 }
 
-# 41
+# 30
 @test 'handle_jump: typing unmatched key leads to failure' {
   local out
   function mock_move_cursor() {
@@ -677,12 +520,9 @@
     : ${(P)output::="b"}
   }
 
-  function zle() {}
-
-  local _fn_apply_replacement=":"
-  local _fn_apply_highlight=":"
-  local _fn_prompt_jump=mock_prompt_jump
   local _fn_move_cursor=mock_move_cursor
+  local _fn_prompt_jump=mock_prompt_jump
+    local _fn_render_jump_markers=":"
 
   local -a maps=(
     "a"$'\0'"7"
@@ -698,7 +538,7 @@
   assert $state equals 1
 }
 
-# 42
+# 31
 @test 'isprintable: single printable char returns true' {
   run _zsh_easymotion_isprintable 'a'
   assert $state equals 0
@@ -716,13 +556,13 @@
   assert $state equals 0
 }
 
-# 43
+# 32
 @test 'isprintable: empty string returns false' {
   run _zsh_easymotion_isprintable ""
   assert $state equals 1
 }
 
-# 44
+# 33
 @test 'isprintable: control characters return false' {
   run _zsh_easymotion_isprintable $'\n'
   assert $state equals 1
@@ -736,7 +576,7 @@
   assert $state equals 1
 }
 
-# 45
+# 34
 @test 'jump_indices: boundaries with mock' {
   local called=0
   function mock_easymotion_boundaries() {
@@ -747,7 +587,6 @@
   local _fn_boundaries=mock_easymotion_boundaries
   local _fn_prompt=_zsh_easymotion_success
   local _fn_prompt_search=_zsh_easymotion_success
-  local _fn_isprintable=_zsh_easymotion_success
   local _fn_char2regex=_zsh_easymotion_success
   local _fn_match_indices=_zsh_easymotion_success
 
@@ -769,7 +608,7 @@
   assert "$out" same_as "1 7"
 }
 
-$ 46
+# 35
 @test 'match_indices: empty buffer returns empty' {
   local out
   _zsh_easymotion_match_indices \
@@ -779,7 +618,7 @@ $ 46
   assert "$out" is_empty
 }
 
-# 47
+# 36
 @test 'match_indices: basic literal pattern' {
   local out
   _zsh_easymotion_match_indices \
@@ -789,7 +628,7 @@ $ 46
   assert "$out" same_as "2 4"
 }
 
-# 48
+# 37
 @test 'match_indices: no matches returns empty' {
   local out
   _zsh_easymotion_match_indices \
@@ -799,7 +638,7 @@ $ 46
   assert "$out" is_empty
 }
 
-# 49
+# 38
 @test 'match_indices: matches at start and end' {
   local out
   _zsh_easymotion_match_indices \
@@ -809,7 +648,7 @@ $ 46
   assert "$out" same_as "1 5"
 }
 
-# 50
+# 39
 @test 'match_indices: regex metacharacters interpreted as pattern' {
   local out
   _zsh_easymotion_match_indices \
@@ -819,7 +658,7 @@ $ 46
   assert "$out" same_as "1 4 10 13"
 }
 
-# 51
+# 40
 @test 'match_indices: consecutive matches found correctly' {
   local out
   _zsh_easymotion_match_indices \
@@ -829,7 +668,7 @@ $ 46
   assert "$out" same_as "1 2 3"
 }
 
-# 52
+# 41
 @test 'move_cursor: converts 1-based to 0-based correctly' {
   local CURSOR
 
@@ -843,12 +682,12 @@ $ 46
   assert "$CURSOR" same_as "9"
 }
 
-# 53
+# 42
 @test 'prompt_jump: uses custom prompt from zstyle' {
   zstyle ':zsh-easymotion:*' prompt-key "Jump to> "
 
   local captured_prompt=""
-  mock_query_char() {
+  function mock_query_char() {
     captured_prompt="$2"
     : ${(P)1::="x"}  # mock user input
   }
@@ -864,12 +703,12 @@ $ 46
   zstyle -d ':zsh-easymotion:*' prompt-key
 }
 
-# 54
+# 43
 @test 'prompt_search: uses custom prompt from zstyle' {
   zstyle ':zsh-easymotion:*' prompt-char "Search > "
 
   local captured_prompt=""
-  mock_query_char() {
+  function mock_query_char() {
     captured_prompt="$2"
     : ${(P)1::="x"}  # mock user input
   }
@@ -885,7 +724,198 @@ $ 46
   zstyle -d ':zsh-easymotion:*' prompt-char
 }
 
-# 55
+# 44
+@test 'readkey: fails on eof' {
+  function read() {
+    _zsh_easymotion_failure
+  }
+
+  local out
+  run _zsh_easymotion_readkey out
+
+  assert $state equals 1
+}
+
+# 45
+@test 'readkey: not printable with mock' {
+  function read() {
+    local ref="$4"
+    : ${(P)ref::="a"}  # mock user input
+  }
+
+  local _fn_isprintable=_zsh_easymotion_failure
+
+  local out
+  run _zsh_easymotion_readkey out
+
+  assert $state equals 1
+}
+
+# 46
+@test 'readkey: assign with mock' {
+  function read() {
+    local ref="$4"
+    : ${(P)ref::="é"}  # mock user input
+  }
+
+  local _fn_isprintable=_zsh_easymotion_success
+
+  local out
+  _zsh_easymotion_readkey out
+
+  assert "$out" same_as "é"
+}
+
+# 47
+@test 'render_jump_markers: empty input' {
+  function zle() {}
+
+  local -a region_highlight
+  _zsh_easymotion_render_jump_markers \
+    "hello"                           \
+    "" 
+  assert "${#region_highlight[@]}" equals 1
+  assert "$region_highlight[1]" same_as "0 5 fg=black,bold"
+
+  # restores original buffer
+  assert "$BUFFER" same_as "hello"
+}
+
+# 48
+@test 'render_jump_markers: single-character' {
+  function zle() {}
+
+  local BUFFER
+  local -a region_highlight
+  local -a map=(
+    "a"$'\0'"2"
+    "b"$'\0'"4"
+  )
+  _zsh_easymotion_render_jump_markers \
+    "x/x/x"                           \
+    ""                                \
+    ${map[@]}
+  assert "${#region_highlight[@]}" equals 3
+  assert "$region_highlight[1]" same_as "0 5 fg=black,bold"
+  assert "$region_highlight[2]" same_as "1 2 fg=196,bold"
+  assert "$region_highlight[3]" same_as "3 4 fg=196,bold"
+  assert "$BUFFER" same_as "xaxbx"
+}
+
+# 49
+@test 'render_jump_markers: multi-character' {
+  function zle() {}
+
+  local BUFFER
+  local -a region_highlight
+  local -a map=("ab"$'\0'"2")
+  _zsh_easymotion_render_jump_markers \
+    "x/xx"                            \
+    ""                                \
+    ${map[@]}
+  assert "${#region_highlight[@]}" equals 3
+  assert "$region_highlight[1]" same_as "0 4 fg=black,bold"
+  assert "$region_highlight[2]" same_as "1 2 fg=208,bold"
+  assert "$region_highlight[3]" same_as "2 3 fg=94,bold"
+  assert "$BUFFER" same_as "xabx"
+}
+
+# 50
+@test 'render_jump_markers: mixed single and multi-char' {
+  function zle() {}
+
+  local BUFFER
+  local -a region_highlight
+  local -a maps=(
+    "a"$'\0'"2"
+    "bc"$'\0'"4"
+  )
+  _zsh_easymotion_render_jump_markers \
+    "x/x/xx"                          \
+    ""                                \
+    ${maps[@]}
+  assert "${#region_highlight[@]}" equals 4
+  assert "$region_highlight[1]" same_as "0 6 fg=black,bold"
+  assert "$region_highlight[2]" same_as "1 2 fg=196,bold"
+  assert "$region_highlight[3]" same_as "3 4 fg=208,bold"
+  assert "$region_highlight[4]" same_as "4 5 fg=94,bold"
+  assert "$BUFFER" same_as "xaxbcx"
+}
+
+# 51
+@test 'render_jump_markers: overlapping' {
+  function zle() {}
+
+  local BUFFER=""
+  local -a region_highlight
+  local -a maps=(
+    ";a"$'\0'"2"
+    ";b"$'\0'"3"
+  )
+  _zsh_easymotion_render_jump_markers \
+    "x//x"                            \
+    ""                                \
+    ${maps[@]}
+  assert "${#region_highlight[@]}" equals 5
+  assert "$region_highlight[1]" same_as "0 4 fg=black,bold"
+  assert "$region_highlight[2]" same_as "1 2 fg=208,bold"
+  assert "$region_highlight[3]" same_as "2 3 fg=94,bold"
+  assert "$region_highlight[4]" same_as "2 3 fg=208,bold"
+  assert "$region_highlight[5]" same_as "3 4 fg=94,bold"
+  assert "$BUFFER" same_as "x;;b"
+}
+
+# 52
+@test 'render_jump_markers: end of buffer' {
+  function zle() {}
+
+  local BUFFER=""
+  local -a region_highlight
+  local -a maps=(
+    ";a"$'\0'"2"
+  )
+  _zsh_easymotion_render_jump_markers \
+    "x/"                             \
+    ""                               \
+    ${maps[@]}
+  assert "${#region_highlight[@]}" equals 3
+  assert "$region_highlight[1]" same_as "0 2 fg=black,bold"
+  assert "$region_highlight[2]" same_as "1 2 fg=208,bold"
+  assert "$region_highlight[3]" same_as "2 3 fg=94,bold"
+  assert "$BUFFER" same_as "x;a"
+}
+
+# 53
+@test 'render_jump_markers: respects custom zstyle colors' {
+  zstyle ':zsh-easymotion:*' fg-primary 'fg=red,bold'
+  zstyle ':zsh-easymotion:*' fg-secondary 'fg=orange,bold'
+  zstyle ':zsh-easymotion:*' fg-tertiary 'fg=yellow,bold'
+  zstyle ':zsh-easymotion:*' fg-dim 'fg=green,bold'
+
+  function zle() {}
+
+  local -a region_highlight
+  local -a map=(
+    "a"$'\0'"2"
+    ";;"$'\0'"4"
+  )
+  _zsh_easymotion_render_jump_markers \
+    "x/x/x"                           \
+    ""                                \
+    ${map[@]}
+  assert "${#region_highlight[@]}" equals 4
+  assert "$region_highlight[1]" same_as "0 5 fg=green,bold"
+  assert "$region_highlight[2]" same_as "1 2 fg=red,bold"
+  assert "$region_highlight[3]" same_as "3 4 fg=orange,bold"
+  assert "$region_highlight[4]" same_as "4 5 fg=yellow,bold"
+
+  zstyle -d ':zsh-easymotion:*' fg-primary
+  zstyle -d ':zsh-easymotion:*' fg-secondary
+  zstyle -d ':zsh-easymotion:*' fg-tertiary
+  zstyle -d ':zsh-easymotion:*' fg-dim
+}
+
+# 54
 @test 'success: returns exit code 0' {
   run _zsh_easymotion_success
   assert $state equals 0

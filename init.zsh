@@ -1,122 +1,6 @@
 #!/usr/bin/env zsh
 
 ################################################################################
-# @brief  Applies syntax highlighting to EasyMotion jump markers in the buffer.
-#
-# This function configures visual highlighting for EasyMotion jump markers,
-# dimming the background text and applying colour-coded highlights to jump keys
-# based on their type (single-key vs. multi-key).
-#
-# Highlighting strategy:
-#   - Entire buffer dimmed to de-emphasise non-target text
-#   - Single-character jump keys: primary colour (default: bold red)
-#   - Multi-character jump keys:
-#       - First character: secondary colour (default: bold orange)
-#       - Subsequent characters: tertiary colour (default: bold dark brown)
-#
-# Colours and styles are configurable via zstyle for custom theming.
-#
-# @param[in] _buffer Original buffer content for calculating positions.
-# @param[in] _key_sequences Already typed key sequence for multi-key jumps.
-# @param[in] _arr_keymaps Array of keymap entries in "key\0index" format.
-# @return Modifies region_highlight array directly; no explicit return value.
-################################################################################
-function _zsh_easymotion_apply_highlights() {
-  local _buffer="$1"; shift
-  local _key_sequences="$1"; shift
-  local -a _arr_keymaps=($@)
-
-  # Fetch colour/style settings via zstyle, with sensible defaults.
-  local _fg_primary _fg_secondary _fg_tertiary _fg_dim
-  # Default: red for primary keys
-  zstyle -s ':zsh-easymotion:*' fg-primary _fg_primary \
-    || _fg_primary='fg=196,bold' 
-  # Default: orange for secondary keys
-  zstyle -s ':zsh-easymotion:*' fg-secondary _fg_secondary \
-    || _fg_secondary='fg=208,bold' 
-  # Default: dark brown for tertiary character in multi-char keys
-  zstyle -s ':zsh-easymotion:*' fg-tertiary _fg_tertiary \
-    || _fg_tertiary='fg=94,bold'
-  # Default: dim background
-  zstyle -s ':zsh-easymotion:*' fg-dim _fg_dim \
-    || _fg_dim='fg=black,bold'
-
-  # Dim entire buffer as background
-  region_highlight=("0 $#_buffer $_fg_dim")
-
-  local -a _primary_highlights _secondary_highlights
-
-  local _item
-  for _item in $@; do
-    # Extract index from "key\0index" format
-    local _idx=${_item#*$'\0'} # Remove everything before first null byte
-
-    # Extract jump key from "key\0index" format and remove already-typed prefix
-    # 1. ${_item%$'\0'*}: Remove everything after null byte, leaving "key"
-    # 2. ${...#$_key_sequences}: Remove already-typed key sequence prefix
-    local _key=${${_item%$'\0'*}#$_key_sequences}
-
-    # Calculate end position for replacement
-    local _end_idx=$(( _idx + $#_key - 1 ))
-
-    if (( 1 == $#_key )); then
-      # Single-character keys: highlight with primary colour
-      _primary_highlights+=("$(( _idx - 1 )) $_idx $_fg_primary")
-    else
-      # Multi-character keys: first character secondary, rest tertiary
-      _secondary_highlights+=("$(( _idx - 1 )) $_idx $_fg_secondary")
-      _secondary_highlights+=("$_idx $(( _idx + 1 )) $_fg_tertiary")
-    fi
-  done
-
-  # Apply all highlights to region_highlight array
-  region_highlight+=(${_primary_highlights[@]} ${_secondary_highlights[@]})
-}
-
-################################################################################
-# @brief  Applies EasyMotion visual replacements to the editing buffer.
-#
-# This function modifies the ZLE buffer to display EasyMotion visual markers
-# (jump keys) over the corresponding target positions. It restores the original
-# buffer content first, then iteratively replaces character sequences at target
-# positions with their assigned jump keys.
-#
-# The keymap array contains entries in the format "key\0index", where:
-#   - key: The jump key or key sequence to display
-#   - index: 1-based position in the buffer to replace
-#
-# @param[in] _buffer Original buffer content to restore and modify.
-# @param[in] _key_sequences Already typed key sequence for multi-key jumps.
-# @param[in] _arr_keymaps Array of keymap entries in "key\0index" format.
-# @return Modifies BUFFER directly; no explicit return value.
-################################################################################
-function _zsh_easymotion_apply_replacements() {
-  local _buffer="$1"; shift
-  local _key_sequences="$1"; shift
-  local -a _arr_keymaps=($@)
-
-  # Restore original buffer state first
-  BUFFER=$_buffer
-
-  local _item
-  for _item in $@; do
-    # Extract index from "key\0index" format
-    local _idx=${_item#*$'\0'} # Remove everything before first null byte
-
-    # Extract jump key from "key\0index" format and remove already-typed prefix
-    # 1. ${_item%$'\0'*}: Remove everything after null byte, leaving "key"
-    # 2. ${...#$_key_sequences}: Remove already-typed key sequence prefix
-    local _key=${${_item%$'\0'*}#$_key_sequences}
-
-    # Calculate end position for replacement
-    local _end_idx=$(( _idx + $#_key - 1 ))
-
-    # Replace characters in buffer with jump key
-    BUFFER[$_idx,$_end_idx]="${(s..)_key}"
-  done
-}
-
-################################################################################
 # @brief  Generates EasyMotion jump keys based on target count and available
 #         keys.
 #
@@ -145,12 +29,12 @@ function _zsh_easymotion_apply_replacements() {
 #   Output (first 6): ["a","ba","bb","bc","ca","cb"]
 #
 # @param[in] _indices Space-separated position string (determines target count).
-# @param[out] _var_output Variable to receive space-separated generated keys.
+# @param[out] _ref_output Variable to receive space-separated generated keys.
 # @return Returns 0 on success, non-zero on failure (if target count exceeds K²).
 ################################################################################
 function _zsh_easymotion_assign_keys() {
   local _indices="$1"; shift
-  local _var_output="$1"
+  local _ref_output="$1"
 
   # Edge case: no targets, return empty
   if [[ -z "$_indices" ]]; then
@@ -235,7 +119,7 @@ function _zsh_easymotion_assign_keys() {
   _arr_result=("${_arr_result[@]:0:$_count}")
 
   # Step 5: Output as space-separated string
-  : ${(P)_var_output::=${(j. .)_arr_result}}
+  : ${(P)_ref_output::=${(j. .)_arr_result}}
 }
 
 ################################################################################
@@ -326,7 +210,7 @@ function _zsh_easymotion_boundaries() {
 #   Output array: ("a\01" "ba\02" "bb\03")
 #
 # @param[in] _suffixes Space-separated position indices (1-based).
-# @param[out] _var_output Variable to receive the keymap array.
+# @param[out] _ref_output Variable to receive the keymap array.
 # @return Returns 0 on success, non-zero if key generation fails.
 ################################################################################
 function _zsh_easymotion_build_keymap() {
@@ -334,7 +218,7 @@ function _zsh_easymotion_build_keymap() {
   setopt localoptions extendedglob
 
   local _suffixes="$1"; shift
-  local _var_output="$1"; shift
+  local _ref_output="$1"; shift
 
   if [[ -z $_suffixes ]]; then
     $_fn_success
@@ -362,7 +246,7 @@ function _zsh_easymotion_build_keymap() {
   # Append final null byte + index for the last key (which has no trailing space)
   _map+="${_null}$_arr_suffixes[_idx]"
 
-  : ${(PA)_var_output::=${(s. .)_map}}
+  : ${(PA)_ref_output::=${(s. .)_map}}
 }
 
 ################################################################################
@@ -451,35 +335,24 @@ function _zsh_easymotion_handle_jump() {
   local _buffer="$1"; shift # Current screen buffer content
   local _key_sequences="$1"; shift # User-typed key sequence so far
   local -a _arr_keymaps=($@) # Array elements: "key\0index"
+  local _size=$#_arr_keymaps
 
-  if (( 0 == $#_arr_keymaps )); then
+  if (( 0 == _size )); then
     $_fn_failure
     return $?
   # Direct jump if only one target remains
-  elif (( 1 == $#_arr_keymaps )); then
+  elif (( 1 == _size )); then
     $_fn_move_cursor ${_arr_keymaps[1]#*$'\0'}
     return $?
   fi
 
-  # Apply visual replacements (show jump keys in buffer)
-  $_fn_apply_replacement \
-    "$_buffer"           \
-    "$_key_sequences"    \
-    ${_arr_keymaps}
-
   # Localising region_highlight ensures cleanup when function exits
   local region_highlight
   # Apply syntax highlighting to jump markers
-  $_fn_apply_highlights \
-    "$_buffer"          \
-    "$_key_sequences"   \
+  $_fn_render_jump_markers \
+    "$_buffer"             \
+    "$_key_sequences"      \
     ${_arr_keymaps}
-
-# TODO: Optimisation opportunity - combine _fn_apply_replacement and
-#       _fn_apply_highlights logic for efficiency improvement
-
-  # Redraw ZLE with updated buffer and highlights
-  zle -R
 
   local _input # Prompt user for next key in jump sequence
   if $_fn_prompt_jump _input; then
@@ -607,11 +480,6 @@ function _zsh_easymotion_jump_indices() {
   # Search mode: full interactive workflow
   local _char
   $_fn_prompt_search "_char" || {
-    $_fn_failure
-    return $?
-  }
-  
-  $_fn_isprintable "$_char" || {
     $_fn_failure
     return $?
   }
@@ -848,22 +716,116 @@ function _zsh_easymotion_query_char() {
 }
 
 ################################################################################
-# @brief  Reads a single character from user input without echoing.
+# @brief  Reads and validates a single printable character from user input.
 #
-# This function reads exactly one character from standard input without
-# displaying it on the screen. It uses a non-blocking read with no line
-# buffering, making it suitable for interactive key handling in zle widgets.
+# This function reads exactly one character from standard input without echoing
+# it to the terminal. It then checks whether the character is a single printable
+# character as defined by the POSIX [:print:] character class. The result is
+# stored in a caller-specified variable.
 #
-# The character read is stored in the variable named by the caller. This allows
-# the result to be captured and used in the calling context.
+# This is intended for use in zle widgets where interactive key handling must
+# ensure inputs are suitable for buffer scanning and highlighting operations.
 #
-# @param[out] $_var_output Name of the variable to store the read character.
-# @return  Returns the exit status of the internal `read` command.
+# @param[out] _ref_output Name of the variable to store the validated character.
+# @return Returns 0 if a single printable character was read; 1 otherwise.
 ################################################################################
 function _zsh_easymotion_readkey() {
-  local _var_output="$1"
-  read -s -k 1 $_var_output
-  return $?
+  local _ref_output="$1"
+
+  # Attempt to read a single keypress silently
+  if ! read -s -k 1 $_ref_output; then
+    $_fn_failure
+    return $?
+  fi
+
+  # Validate: exactly one character and matches [:print:]
+  $_fn_isprintable "${(P)_ref_output}"
+}
+
+################################################################################
+# @brief  Renders EasyMotion jump markers with buffer replacement and
+#         highlighting.
+#
+# This function restores the original ZLE buffer, replaces target positions with
+# their assigned jump keys, and applies syntax highlighting to distinguish marker
+# types. The entire buffer is dimmed as background context, while jump keys are
+# coloured according to length:
+#   - Single-character keys: primary colour (default: bold red)
+#   - Multi-character keys:
+#       - First character: secondary colour (default: bold orange)
+#       - Subsequent characters: tertiary colour (default: bold dark brown)
+#
+# Colours and styles are configurable via zstyle under ':zsh-easymotion:*'.
+# After updating BUFFER and region_highlight, it triggers a ZLE redraw.
+#
+# @param[in] _buffer Original buffer content to restore before rendering.
+# @param[in] _key_sequences Already typed key prefix for multi-key jumps.
+# @param[in] _arr_keymaps Array of entries in "key\0index" format (1-based index).
+# @return Modifies BUFFER and region_highlight directly; redraws ZLE display.
+################################################################################
+function _zsh_easymotion_render_jump_markers() {
+  local _buffer="$1"; shift
+  local _key_sequences="$1"; shift
+  local -a _arr_keymaps=($@)
+
+  # Fetch colour/style settings via zstyle, with sensible defaults.
+  local _fg_primary _fg_secondary _fg_tertiary _fg_dim
+  # Default: red for primary keys
+  zstyle -s ':zsh-easymotion:*' fg-primary _fg_primary \
+    || _fg_primary='fg=196,bold'
+  # Default: orange for secondary keys
+  zstyle -s ':zsh-easymotion:*' fg-secondary _fg_secondary \
+    || _fg_secondary='fg=208,bold'
+  # Default: dark brown for tertiary character in multi-char keys
+  zstyle -s ':zsh-easymotion:*' fg-tertiary _fg_tertiary \
+    || _fg_tertiary='fg=94,bold'
+  # Default: dim background
+  zstyle -s ':zsh-easymotion:*' fg-dim _fg_dim \
+    || _fg_dim='fg=black,bold'
+
+  # Restore original buffer to ensure clean state before rendering markers
+  BUFFER=$_buffer
+  # Dim entire buffer as non-interactive background context
+  region_highlight=("0 $#_buffer $_fg_dim")
+
+  local -a _primary_highlights _secondary_highlights
+
+  local _item
+  for _item in $@; do
+    # Extract 1-based buffer index from "key\0index" format
+    local _idx=${_item#*$'\0'} # Remove everything before first null byte
+
+    # Extract jump key from "key\0index" format, excluding already-typed prefix
+    # 1. ${_item%$'\0'*}: Remove everything after null byte, leaving "key"
+    # 2. ${...#$_key_sequences}: Remove already-typed key sequence prefix
+    local _key=${${_item%$'\0'*}#$_key_sequences}
+    # Determine visual length of the remaining key to display
+    local _size=$#_key
+
+    # Compute inclusive end position for buffer replacement (1-based)
+    local _end_idx=$(( _idx + _size - 1 ))
+
+    # Replace target characters in buffer with jump key characters
+    # ${(s..)_key} splits string into array for ZLE buffer assignment
+    BUFFER[$_idx,$_end_idx]="${(s..)_key}"
+
+    # Apply syntax highlighting based on key length
+    if (( 1 == _size )); then
+      # Single-character keys: highlight with primary colour
+      _primary_highlights+=("$(( _idx - 1 )) $_idx $_fg_primary")
+    else
+      # Multi-character marker: first char secondary, second tertiary
+      # Note: region_highlight uses half-open [start,end) ranges (0-based start)
+      _secondary_highlights+=("$(( _idx - 1 )) $_idx $_fg_secondary")
+      _secondary_highlights+=("$_idx $(( _idx + 1 )) $_fg_tertiary")
+    fi
+  done
+
+  # Append all computed highlights to region_highlight array
+  region_highlight+=(${_primary_highlights[@]} ${_secondary_highlights[@]})
+
+  # Redraw ZLE display to reflect updated buffer and highlights
+  zle -R
 }
 
 ################################################################################
@@ -908,8 +870,6 @@ function _zsh_easymotion_widget() {
   # variables enables test suites to replace individual function references with
   # mock implementations, allowing isolated unit testing of each component
   # without ZLE dependencies.
-  local _fn_apply_highlights=_zsh_easymotion_apply_highlights
-  local _fn_apply_replacement=_zsh_easymotion_apply_replacements
   local _fn_assign_keys=_zsh_easymotion_assign_keys
   local _fn_boundaries=_zsh_easymotion_boundaries
   local _fn_build_keymap=_zsh_easymotion_build_keymap
@@ -925,6 +885,7 @@ function _zsh_easymotion_widget() {
   local _fn_prompt_search=_zsh_easymotion_prompt_search
   local _fn_query_char=_zsh_easymotion_query_char
   local _fn_readkey=_zsh_easymotion_readkey
+  local _fn_render_jump_markers=_zsh_easymotion_render_jump_markers
   local _fn_success=_zsh_easymotion_success
 
   # Backup original editor state
