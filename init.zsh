@@ -51,15 +51,17 @@ function _zsh_easymotion_apply_highlights() {
     # Extract index from "key\0index" format
     local _idx=${_item#*$'\0'} # Remove everything before first null byte
 
-    # Extract jump key from "key\0index" format and remove already-typed prefix
+    # Extract length of jump key from "key\0index" format, excluding 
+    # already-typed prefix
     # 1. ${_item%$'\0'*}: Remove everything after null byte, leaving "key"
     # 2. ${...#$_key_sequences}: Remove already-typed key sequence prefix
-    local _key=${${_item%$'\0'*}#$_key_sequences}
+    # 3. ${#...}: Get the length of the resulting key string
+    local _size=${#${${_item%$'\0'*}#$_key_sequences}}
 
     # Calculate end position for replacement
-    local _end_idx=$(( _idx + $#_key - 1 ))
+    local _end_idx=$(( _idx + _size - 1 ))
 
-    if (( 1 == $#_key )); then
+    if (( 1 == _size )); then
       # Single-character keys: highlight with primary colour
       _primary_highlights+=("$(( _idx - 1 )) $_idx $_fg_primary")
     else
@@ -451,12 +453,13 @@ function _zsh_easymotion_handle_jump() {
   local _buffer="$1"; shift # Current screen buffer content
   local _key_sequences="$1"; shift # User-typed key sequence so far
   local -a _arr_keymaps=($@) # Array elements: "key\0index"
+  local _size=$#_arr_keymaps
 
-  if (( 0 == $#_arr_keymaps )); then
+  if (( 0 == _size )); then
     $_fn_failure
     return $?
   # Direct jump if only one target remains
-  elif (( 1 == $#_arr_keymaps )); then
+  elif (( 1 == _size )); then
     $_fn_move_cursor ${_arr_keymaps[1]#*$'\0'}
     return $?
   fi
