@@ -18,3 +18,5 @@ local _fn_query_char=_zsh_easymotion_query_char
 local _fn_readkey=_zsh_easymotion_readkey
 local _fn_render_jump_markers=_zsh_easymotion_render_jump_markers
 local _fn_success=_zsh_easymotion_success
+
+local _g_add_newline=""
