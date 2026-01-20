@@ -848,6 +848,43 @@
 }
 
 # 49
+@test 'protected_run: fallback with mock' {
+  local BUFFER="Hello, World!"
+  local CURSOR=10
+
+  function zle() {}
+
+  function mock_invoke_fail() {
+    BUFFER="mock"
+    CURSOR=20
+    _zsh_easymotion_failure
+  }
+  local _fn_invoke=mock_invoke_fail
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "Hello, World!"
+  assert $CURSOR equals 10
+}
+
+# 50
+@test 'protected_run: success preserves cursor with mock' {
+  local BUFFER="Hello, World!"
+  local CURSOR=10
+
+  function zle() {}
+
+  function mock_invoke() {
+    BUFFER="mock"
+    CURSOR=20
+  }
+  local _fn_invoke=mock_invoke
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "Hello, World!"
+  assert $CURSOR equals 20
+}
+
+# 51
 @test 'query_char: failure readkey with mock' {
   local _fn_readkey=_zsh_easymotion_failure
 
@@ -859,7 +896,7 @@
   assert $state equals 1
 }
 
-# 50
+# 52
 @test 'query_char: readkey with mock' {
   function mock_readkey() {
     : ${(P)1::="a"}
@@ -874,7 +911,7 @@
   assert "$out" same_as "a"
 }
 
-# 51
+# 53
 @test 'readkey: fails on eof with mock' {
   function read() {
     _zsh_easymotion_failure
@@ -886,7 +923,7 @@
   assert $state equals 1
 }
 
-# 52
+# 54
 @test 'readkey: not printable with mock' {
   function read() {}
 
@@ -898,7 +935,7 @@
   assert $state equals 1
 }
 
-# 53
+# 55
 @test 'readkey: assign with mock' {
   function read() {
     local ref="$4"
@@ -913,7 +950,7 @@
   assert "$out" same_as "é"
 }
 
-# 54
+# 56
 @test 'render_jump_markers: empty input' {
   function zle() {}
 
@@ -928,7 +965,7 @@
   assert "$BUFFER" same_as "hello"
 }
 
-# 55
+# 57
 @test 'render_jump_markers: single-character' {
   function zle() {}
 
@@ -949,7 +986,7 @@
   assert "$BUFFER" same_as "xaxbx"
 }
 
-# 56
+# 58
 @test 'render_jump_markers: multi-character' {
   function zle() {}
 
@@ -967,7 +1004,7 @@
   assert "$BUFFER" same_as "xabx"
 }
 
-# 57
+# 59
 @test 'render_jump_markers: mixed single and multi-char' {
   function zle() {}
 
@@ -989,7 +1026,7 @@
   assert "$BUFFER" same_as "xaxbcx"
 }
 
-# 58
+# 60
 @test 'render_jump_markers: overlapping' {
   function zle() {}
 
@@ -1012,7 +1049,7 @@
   assert "$BUFFER" same_as "x;;b"
 }
 
-# 59
+# 61
 @test 'render_jump_markers: end of buffer' {
   function zle() {}
 
@@ -1032,7 +1069,7 @@
   assert "$BUFFER" same_as "x;a"
 }
 
-# 60
+# 62
 @test 'render_jump_markers: respects custom zstyle colors' {
   zstyle ':zsh-easymotion:*' fg-primary 'fg=red,bold'
   zstyle ':zsh-easymotion:*' fg-secondary 'fg=orange,bold'
@@ -1062,7 +1099,7 @@
   zstyle -d ':zsh-easymotion:*' fg-dim
 }
 
-# 61
+# 63
 @test 'success: returns exit code 0' {
   run _zsh_easymotion_success
   assert $state equals 0

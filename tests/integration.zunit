@@ -259,7 +259,581 @@ t"$'\0'"20 u"$'\0'"21 v"$'\0'"22 w"$'\0'"23 x"$'\0'"24 y"$'\0'"25 z"$'\0'"26 \
   assert "$out" is_empty
 }
 
+
 # 15
+@test 'protected_run: handles empty buffer gracefully' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    (( ++flag ))
+  }
+
+  local BUFFER=""
+  local CURSOR=0
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as ""
+  assert $CURSOR equals 0
+  assert $flag equals 0
+
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as ""
+  assert $CURSOR equals 0
+  assert $flag equals 0
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" is_empty
+  assert $CURSOR equals 0
+  assert $flag equals 0
+}
+
+# 16
+@test 'protected_run: ignores whitespace-only buffer' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    (( ++flag ))
+  }
+
+  local BUFFER="     "
+  local CURSOR=3
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as "     "
+  assert $CURSOR equals 3
+  assert $flag equals 0
+
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as "     "
+  assert $CURSOR equals 3
+  assert $flag equals 0
+}
+
+# 17
+@test 'protected_run: works with cursor at start of line' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    : ${(P)4::="a"}
+    (( ++flag ))
+  }
+
+  local BUFFER=" abc "
+  local CURSOR=0
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as " abc "
+  assert $CURSOR equals 1
+  assert $flag equals 0
+
+  CURSOR=0
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as " abc "
+  assert $CURSOR equals 3
+  assert $flag equals 0
+
+  CURSOR=0
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as " abc "
+  assert $CURSOR equals 1
+  assert $flag equals 1
+}
+
+
+# 18
+@test 'protected_run: works with cursor at end of line' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    : ${(P)4::="c"}
+    (( ++flag ))
+  }
+
+  local BUFFER=" abc "
+  local CURSOR=4
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as " abc "
+  assert $CURSOR equals 1
+  assert $flag equals 0
+
+  CURSOR=0
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as " abc "
+  assert $CURSOR equals 3
+  assert $flag equals 0
+
+  CURSOR=0
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as " abc "
+  assert $CURSOR equals 3
+  assert $flag equals 1
+}
+
+# 19
+@test 'protected_run: handles single-character buffer correctly' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    : ${(P)4::="x"}
+    (( ++flag ))
+  }
+
+  local BUFFER="x"
+  local CURSOR="0"
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as "x"
+  assert $CURSOR equals 0
+  assert $flag equals 0
+
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as "x"
+  assert $CURSOR equals 0
+  assert $flag equals 0
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "x"
+  assert $CURSOR equals 0
+  assert $flag equals 1
+}
+
+# 20
+@test 'protected_run: word mode jumps to start of current word' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    (( ++flag ))
+  }
+
+  local BUFFER="hello"
+  local CURSOR=3
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as "hello"
+  assert $CURSOR equals 0
+  assert $flag equals 0
+}
+
+# 21
+@test 'protected_run: word mode targets next word when unambiguous' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    : ${(P)4::="b"}
+    (( ++flag ))
+  }
+
+
+  local BUFFER="foo bar"
+  local CURSOR=5
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as "foo bar"
+  assert $CURSOR equals 4
+  assert $flag equals 1
+}
+
+# 22
+@test 'protected_run: word mode cycles through multiple matches' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    case $flag in
+      0)
+        : ${(P)4::="a"}
+        ;;
+      1)
+        : ${(P)4::="b"}
+        ;;
+      2)
+        : ${(P)4::="c"}
+        ;;
+    esac
+    (( ++flag ))
+  }
+
+
+  local BUFFER="a/b/c"
+  local CURSOR=5
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as "a/b/c"
+  assert $CURSOR equals 0
+  assert $flag equals 1
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as "a/b/c"
+  assert $CURSOR equals 2
+  assert $flag equals 2
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as "a/b/c"
+  assert $CURSOR equals 4
+  assert $flag equals 3
+}
+
+# 23
+@test 'protected_run: word mode respects alphanumeric and underscore as word chars' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    (( ++flag ))
+  }
+
+
+  local BUFFER="a_b_c"
+  local CURSOR=5
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as "a_b_c"
+  assert $CURSOR equals 0
+  assert $flag equals 0
+}
+
+# 24
+@test 'protected_run: word mode handles special symbols without error' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    case $flag in
+      0)
+        : ${(P)4::="a"}
+        ;;
+      1)
+        : ${(P)4::="b"}
+        ;;
+      2)
+        : ${(P)4::="c"}
+        ;;
+    esac
+    (( ++flag ))
+  }
+
+
+  local BUFFER='a$b@c'
+  local CURSOR=5
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as 'a$b@c'
+  assert $CURSOR equals 0
+  assert $flag equals 1
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as 'a$b@c'
+  assert $CURSOR equals 2
+  assert $flag equals 2
+
+  _zsh_easymotion_protected_run "word"
+  assert "$BUFFER" same_as 'a$b@c'
+  assert $CURSOR equals 4
+  assert $flag equals 3
+}
+
+# 25
+@test 'protected_run: end mode jumps to end of single word' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    (( ++flag ))
+  }
+
+  local BUFFER="hello"
+  local CURSOR=3
+
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as "hello"
+  assert $CURSOR equals 4
+  assert $flag equals 0
+}
+
+# 26
+@test 'protected_run: end mode targets end of current word when clear' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    : ${(P)4::="b"}
+    (( ++flag ))
+  }
+
+
+  local BUFFER='Hi, there!'
+  local CURSOR=9
+
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as 'Hi, there!'
+  assert $CURSOR equals 8
+  assert $flag equals 1
+}
+
+# 27
+@test 'protected_run: end mode cycles through multiple word ends' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    case $flag in
+      0)
+        : ${(P)4::="a"}
+        ;;
+      1)
+        : ${(P)4::="b"}
+        ;;
+      2)
+        : ${(P)4::="c"}
+        ;;
+    esac
+    (( ++flag ))
+  }
+
+
+  local BUFFER="a/b/c"
+  local CURSOR=5
+
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as "a/b/c"
+  assert $CURSOR equals 0
+  assert $flag equals 1
+
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as "a/b/c"
+  assert $CURSOR equals 2
+  assert $flag equals 2
+
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as "a/b/c"
+  assert $CURSOR equals 4
+  assert $flag equals 3
+}
+
+# 28
+@test 'protected_run: end mode stops at not trailing punctuation' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    (( ++flag ))
+  }
+
+  local BUFFER='hello!!!'
+  local CURSOR=3
+
+  _zsh_easymotion_protected_run "end"
+  assert "$BUFFER" same_as 'hello!!!'
+  assert $CURSOR equals 4
+  assert $flag equals 0
+}
+
+# 29
+@test 'protected_run: search mode jumps to unique character match' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    : ${(P)4::="b"}
+    (( ++flag ))
+  }
+
+  local BUFFER="a/b/c"
+  local CURSOR=5
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "a/b/c"
+  assert $CURSOR equals 2
+  assert $flag equals 1
+}
+
+# 30
+@test 'protected_run: search mode cycles through repeated character matches' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    case $flag in
+      0)
+        : ${(P)4::="a"}
+        ;;
+      1)
+        : ${(P)4::="b"}
+        ;;
+    esac
+    (( ++flag ))
+  }
+
+  local BUFFER="a/b/a"
+  local CURSOR=2
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "a/b/a"
+  assert $CURSOR equals 4
+  assert $flag equals 2
+}
+
+# 31
+@test 'protected_run: search mode aborts cleanly when no match found' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    : ${(P)4::="x"}
+    (( ++flag ))
+  }
+
+  local BUFFER="a/b/c"
+  local CURSOR=2
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "a/b/c"
+  assert $CURSOR equals 2
+  assert $flag equals 1
+}
+
+# 32
+@test 'protected_run: search mode handles Unicode characters safely' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    : ${(P)4::="🌍"}
+    (( ++flag ))
+  }
+
+  local BUFFER="世界🌍,你好!"
+  local CURSOR=6
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "世界🌍,你好!"
+  assert $CURSOR equals 2
+  assert $flag equals 1
+}
+
+# 33
+@test 'protected_run: search mode finds whitespace characters' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    case $flag in
+      0)
+        : ${(P)4::=" "}
+        ;;
+      1)
+        : ${(P)4::="b"}
+        ;;
+    esac
+    (( ++flag ))
+  }
+
+  local BUFFER="a b c"
+  local CURSOR=4
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "a b c"
+  assert $CURSOR equals 3
+  assert $flag equals 2
+}
+
+# 34
+@test 'protected_run: search mode escapes shell metacharacters correctly' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    : ${(P)4::='['}
+    (( ++flag ))
+  }
+
+  local BUFFER='Hello, [world]!'
+  local CURSOR=4
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as 'Hello, [world]!'
+  assert $CURSOR equals 7
+  assert $flag equals 1
+}
+
+# 35
+@test 'protected_run: search mode cancels on invalid user input' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    case $flag in
+      0)
+        : ${(P)4::="a"}
+        ;;
+      1)
+        : ${(P)4::="c"}
+        ;;
+    esac
+    (( ++flag ))
+  }
+
+  local BUFFER="a/b/a"
+  local CURSOR=2
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "a/b/a"
+  assert $CURSOR equals 2
+  assert $flag equals 2
+}
+
+# 36
+@test 'protected_run: search mode cancels on empty user input' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    case $flag in
+      0)
+        : ${(P)4::="a"}
+        ;;
+      1)
+        ;;
+    esac
+    (( ++flag ))
+  }
+
+  local BUFFER="a/b/a"
+  local CURSOR=2
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "a/b/a"
+  assert $CURSOR equals 2
+  assert $flag equals 2
+}
+
+# 37
+@test 'protected_run: search mode cancels on empty user target' {
+  function zle() {}
+
+  local -i flag=0
+  function read() {
+    (( ++flag ))
+  }
+
+  local BUFFER="a/b/a"
+  local CURSOR=2
+
+  _zsh_easymotion_protected_run "search"
+  assert "$BUFFER" same_as "a/b/a"
+  assert $CURSOR equals 2
+  assert $flag equals 1
+}
+
+# 38
 @test 'readkey: printable ascii char' {
   function read() {
     local ref="$4"
@@ -272,7 +846,7 @@ t"$'\0'"20 u"$'\0'"21 v"$'\0'"22 w"$'\0'"23 x"$'\0'"24 y"$'\0'"25 z"$'\0'"26 \
   assert "$out" same_as "a"
 }
 
-# 16
+# 39
 @test 'readkey: printable unicode char' {
   function read() {
     local ref="$4"
@@ -285,7 +859,7 @@ t"$'\0'"20 u"$'\0'"21 v"$'\0'"22 w"$'\0'"23 x"$'\0'"24 y"$'\0'"25 z"$'\0'"26 \
   assert "$out" same_as "é"
 }
 
-# 17
+# 40
 @test 'readkey: rejects control character' {
   function read() {
     local ref="$4"
@@ -298,7 +872,7 @@ t"$'\0'"20 u"$'\0'"21 v"$'\0'"22 w"$'\0'"23 x"$'\0'"24 y"$'\0'"25 z"$'\0'"26 \
   assert $state equals 1
 }
 
-# 18
+# 41
 @test 'readkey: rejects multi characters' {
   function read() {
     local ref="$4"
@@ -310,3 +884,4 @@ t"$'\0'"20 u"$'\0'"21 v"$'\0'"22 w"$'\0'"23 x"$'\0'"24 y"$'\0'"25 z"$'\0'"26 \
 
   assert $state equals 1
 }
+

@@ -659,6 +659,60 @@ function _zsh_easymotion_prompt_search() {
 }
 
 ################################################################################
+# @brief  Protected execution context for EasyMotion operations.
+#
+# This function provides a safe execution environment for EasyMotion motion
+# logic. It backs up the editor state, prepares the display, invokes the core
+# workflow, and guarantees restoration of the original buffer and cursor
+# position—regardless of success, failure, or user cancellation.
+#
+# Key responsibilities:
+# 1. Backup original BUFFER and CURSOR
+# 2. Move cursor to end of line for full target visibility
+# 3. Invoke the main motion logic via $_fn_invoke
+# 4. Restore original state in all code paths using an 'always' block
+#
+# The 'always' block ensures that BUFFER is restored and the display refreshed
+# even if the motion operation exits abruptly or signals failure.
+#
+# @param[in] _mode Motion mode: "search", "word", or "end".
+# @return Returns exit status from the invoked motion operation.
+################################################################################
+function _zsh_easymotion_protected_run() {
+  local _mode="$1"
+
+  if [[ -z "$BUFFER" ]]; then
+    $_fn_success
+    return $?
+  fi
+
+  # Global flag controlling newline workaround for ZLE redraw. Set to 'true' on
+  # widget entry; cleared after first use.
+  local _g_add_newline="true"
+
+  # Backup original editor state
+  local _orig_buffer="$BUFFER"
+  local _orig_cursor="$CURSOR"
+
+  # Move cursor to end of buffer for full visibility of motion targets
+  (( CURSOR = $#BUFFER ))
+  zle -R
+
+  {
+    # Execute the main EasyMotion workflow
+    $_fn_invoke       \
+      "$_mode"        \
+      "$_orig_buffer" \
+      || (( CURSOR = _orig_cursor )) # Restore cursor on failure
+  } always {
+    # Always restore original buffer content
+    BUFFER="$_orig_buffer"
+    # Refresh and reprocess the entire command line
+    zle redisplay
+  }
+}
+
+################################################################################
 # @brief  Displays a prompt and reads a single character with UI handling.
 #
 # This function provides a user interface for reading a single character while
@@ -842,26 +896,22 @@ function _zsh_easymotion_success() {
 # @brief  Main ZLE widget entry point for EasyMotion operations.
 #
 # This function serves as the primary ZLE (Zsh Line Editor) widget for all
-# EasyMotion operations. It initialises the function dispatch environment, backs
-# up editor state, executes the motion operation, and ensures proper cleanup
-# regardless of success or failure.
+# EasyMotion operations. It initialises the function dispatch environment and
+# delegates execution to the protected runner, which handles state backup,
+# cursor management, and cleanup.
 #
 # Key responsibilities:
 # 1. Initialise function dispatch variables for modular testing
-# 2. Backup original buffer content and cursor position
-# 3. Move cursor to end of buffer for full visibility of motion targets
-# 4. Invoke the main EasyMotion workflow
-# 5. Restore original buffer and refresh display in all cases
+# 2. Delegate to the protected execution context
 #
-# The 'always' block ensures proper cleanup even if the motion operation fails
-# or is cancelled by the user.
+# The use of indirection via _fn_xxx variables enables test suites to replace
+# individual function references with mock implementations, supporting isolated
+# unit and integration testing without ZLE dependencies.
 #
 # @param[in] _mode Motion mode: "search", "word", or "end".
 # @return Modifies BUFFER and CURSOR; returns exit status from motion operation.
 ################################################################################
 function _zsh_easymotion_widget() {
-  local _mode="$1"; shift
-
   # Initialise function dispatch variables for modular testing. Using _fn_xxx
   # variables enables test suites to replace individual function references with
   # mock implementations, allowing isolated unit testing of each component
@@ -879,35 +929,13 @@ function _zsh_easymotion_widget() {
   local _fn_move_cursor=_zsh_easymotion_move_cursor
   local _fn_prompt_jump=_zsh_easymotion_prompt_jump
   local _fn_prompt_search=_zsh_easymotion_prompt_search
+  local _fn_protected_run=_zsh_easymotion_protected_run
   local _fn_query_char=_zsh_easymotion_query_char
   local _fn_readkey=_zsh_easymotion_readkey
   local _fn_render_jump_markers=_zsh_easymotion_render_jump_markers
   local _fn_success=_zsh_easymotion_success
 
-  # Global flag controlling newline workaround for ZLE redraw. Set to 'true' on
-  # widget entry; cleared after first use.
-  local _g_add_newline="true"
-
-  # Backup original editor state
-  local _orig_buffer="$BUFFER"
-  local _orig_cursor="$CURSOR"
-
-  # Move cursor to end of buffer for full visibility of motion targets
-  (( CURSOR = $#BUFFER ))
-  zle -R
-
-  {
-    # Execute the main EasyMotion workflow
-    $_fn_invoke       \
-      "$_mode"        \
-      "$_orig_buffer" \
-      || (( CURSOR = _orig_cursor )) # Restore cursor on failure
-  } always {
-    # Always restore original buffer content
-    BUFFER="$_orig_buffer"
-    # Refresh and reprocess the entire command line
-    zle redisplay
-  }
+  $_fn_protected_run $@
 }
 
 ################################################################################
